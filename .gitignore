@@ -13,3 +13,6 @@ __pycache__/
 
 # Ignore old state file, if present
 pipeline_state.json
+
+# Ignore the folder containing knowledge base documents
+/knowledge_base/
