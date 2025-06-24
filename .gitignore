@@ -1,0 +1,15 @@
+# Ignore the Python virtual environment
+/venv/
+
+# Ignore the folder containing all personal health data exports
+/data_exports/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore environment variables file (contains API keys)
+.env
+
+# Ignore old state file, if present
+pipeline_state.json
