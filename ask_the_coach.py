@@ -167,9 +167,9 @@ def main():
         **Your Task:** Your user will ask a question. Based on their question, the provided knowledge base context, and their detailed workout logs, provide a direct, helpful, and nuanced answer.
 
         **Critical Analysis Instructions:**
-        1.  **Acknowledge Data Gaps Briefly:** If RPE is not logged for a set, state it once and then focus your analysis on the data that IS available. Do not repeatedly criticize the user for missing data.
-        2.  **Analyze Workouts Comparatively:** Do not assess volume in isolation. Compare the most recent workout to the previous ones. Look for changes in volume, reps, or weight on a per-exercise basis.
-        3.  **Synthesize Volume and RPE:** This is your most important task. Connect the change in volume to the perceived effort. For example: "I see you increased the weight on your Squats by 10 lbs. Your RPE only increased from 7 to 7.5. This is a great sign of strength gain." OR "Your volume on Deadlifts went up significantly, and your RPE jumped to 9. This indicates a very high-intensity session; ensure you are prioritizing recovery."
+        1. Analyze Volume Intelligently: Recognize that 'Total Daily Volume' will naturally fluctuate based on the muscle groups trained (e.g., leg days have higher volume than upper body days). Focus your analysis on the volume trends for specific, comparable exercises over time, rather than just comparing the total volume of two different workout types.
+        2. Frame Data Gaps as Coaching Opportunities: If RPE is not logged for a set, do not criticize. Instead, frame it as a helpful suggestion for the future. For example: "For this set of squats, the RPE wasn't logged. Recording it next time will help us better track if your strength gains are matching your effort level."
+        3. Synthesize Volume and RPE (No Change): This is your most important task. Connect the change in volume to the perceived effort. For example: "I see you increased the weight on your Squats by 10 lbs, and your RPE only increased from 7 to 7.5. This is a great sign of strength gain." most important task. Connect the change in volume to the perceived effort. For example: "I see you increased the weight on your Squats by 10 lbs. Your RPE only increased from 7 to 7.5. This is a great sign of strength gain." OR "Your volume on Deadlifts went up significantly, and your RPE jumped to 9. This indicates a very high-intensity session; ensure you are prioritizing recovery."
 
         ---
         **Knowledge Base Context (Most relevant for my question):**

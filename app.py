@@ -178,6 +178,37 @@ def ask():
     except Exception as e:
         print(f"An error occurred in /ask route: {e}")
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/strength_volume_data')
+def strength_volume_data():
+    """
+    This endpoint queries the database and returns all historical strength
+    training volume data, formatted for use with a charting library.
+    """
+    try:
+        engine = get_db_engine()
+        # Query to get all days where strength training occurred, sorted by date
+        query = text("""
+            SELECT date, strength_volume 
+            FROM daily_summaries 
+            WHERE strength_volume > 0 
+            ORDER BY date ASC;
+        """)
+        with engine.connect() as conn:
+            df = pd.read_sql_query(query, conn)
+            df['date'] = pd.to_datetime(df['date'])
+        
+        # Format the data into a structure that Chart.js understands
+        chart_data = {
+            'labels': df['date'].dt.strftime('%Y-%m-%d').tolist(),
+            'data': df['strength_volume'].tolist()
+        }
+        # Return the data as a JSON response
+        return jsonify(chart_data)
+        
+    except Exception as e:
+        print(f"Error in /api/strength_volume_data route: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':

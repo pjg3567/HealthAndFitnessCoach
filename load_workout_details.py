@@ -54,31 +54,63 @@ def parse_rpe_from_note(note_text, set_order):
     return None
 
 def parse_strong_workouts(file_path):
-    """Parses the Strong CSV for detailed workout sets, with advanced RPE logic."""
+    """
+    Parses the Strong CSV for detailed workout sets, with advanced RPE logic
+    that can parse a single note for an entire exercise.
+    """
     try:
         df = pd.read_csv(file_path)
-        df = df[['Date', 'Exercise Name', 'Set Order', 'Weight', 'Reps', 'RPE', 'Notes']]
-        df.rename(columns={'Date': 'start_date'}, inplace=True)
-        df['start_date'] = pd.to_datetime(df['start_date'])
+        df['Date'] = pd.to_datetime(df['Date'])
         
         # Clean numeric columns
         df['Set Order'] = pd.to_numeric(df['Set Order'], errors='coerce')
         df['Weight'] = pd.to_numeric(df['Weight'], errors='coerce')
         df['Reps'] = pd.to_numeric(df['Reps'], errors='coerce')
         df['RPE'] = pd.to_numeric(df['RPE'], errors='coerce')
-        
-        df.dropna(subset=['Set Order', 'Weight', 'Reps'], inplace=True)
+        df.dropna(subset=['Date', 'Exercise Name', 'Set Order'], inplace=True)
         
         df['Set Order'] = df['Set Order'].astype(int)
-        df['Reps'] = df['Reps'].astype(int)
 
-        def get_final_rpe(row):
-            if pd.notna(row['RPE']) and row['RPE'] > 0:
-                return row['RPE']
-            return parse_rpe_from_note(row['Notes'], row['Set Order'])
+        processed_rows = []
+        # Group by workout day and then by exercise name to process each exercise block
+        for (date, exercise_name), group in df.groupby(['Date', 'Exercise Name']):
+            
+            # Find the single note for this entire exercise group (it's likely on the first set)
+            notes_list = group['Notes'].dropna().unique()
+            rpe_note_text = notes_list[0] if len(notes_list) > 0 else ""
+            
+            # Pre-parse all RPEs from that single note into a dictionary (e.g., {1: 8.0, 2: 8.5})
+            rpe_from_note_dict = {}
+            if isinstance(rpe_note_text, str):
+                matches = re.findall(r'Set\s(\d+)\sRPE\s=\s(\d+\.?\d*)', rpe_note_text, re.IGNORECASE)
+                for match in matches:
+                    rpe_from_note_dict[int(match[0])] = float(match[1])
 
-        df['final_rpe'] = df.apply(get_final_rpe, axis=1)
-        return df
+            # Apply the correct RPE to each set in the group
+            for _, row in group.iterrows():
+                set_order = row['Set Order']
+                final_rpe = None
+                
+                # First, prioritize the native RPE column if it has data
+                if pd.notna(row['RPE']) and row['RPE'] > 0:
+                    final_rpe = row['RPE']
+                # If not, check our dictionary parsed from the note
+                elif set_order in rpe_from_note_dict:
+                    final_rpe = rpe_from_note_dict[set_order]
+                
+                # Append the processed row with the final RPE value
+                new_row = row.to_dict()
+                new_row['final_rpe'] = final_rpe
+                processed_rows.append(new_row)
+
+        if not processed_rows:
+            return pd.DataFrame()
+
+        final_df = pd.DataFrame(processed_rows)
+        # We now rename columns for consistency with the loading function
+        final_df.rename(columns={'Date': 'start_date', 'Exercise Name': 'Exercise Name', 'Set Order': 'Set Order', 'Weight': 'Weight', 'Reps': 'Reps'}, inplace=True)
+        return final_df
+
     except Exception as e:
         print(f"  - Error parsing Strong data: {e}")
         return pd.DataFrame()
