@@ -182,21 +182,51 @@ def ask():
 @app.route('/api/strength_volume_data')
 def strength_volume_data():
     """
-    This endpoint queries the database and returns all historical strength
-    training volume data, formatted for use with a charting library.
+    This endpoint queries the database and returns historical strength
+    training volume data, filtered by an optional timeframe and duration.
     """
     try:
         engine = get_db_engine()
-        # Query to get all days where strength training occurred, sorted by date
-        query = text("""
+        
+        # Get the 'timeframe' parameter (unit) from the request query string.
+        # Default to 'month' if not provided.
+        timeframe_unit = request.args.get('timeframe_unit', 'month') 
+        
+        # Get the 'duration' parameter (number). Convert to int, default to 1 if not provided or invalid.
+        duration_str = request.args.get('duration', '1')
+        try:
+            duration = int(duration_str)
+            if duration <= 0: # Ensure duration is positive
+                duration = 1
+        except ValueError:
+            duration = 1 # Default to 1 if not a valid number
+        
+        # Base query to get all strength volume data
+        base_query = """
             SELECT date, strength_volume 
             FROM daily_summaries 
             WHERE strength_volume > 0 
-            ORDER BY date ASC;
-        """)
+        """
+        
+        # Add filtering based on the timeframe_unit and duration
+        if timeframe_unit == 'week':
+            # Last 'duration' weeks
+            query = text(f"{base_query} AND date >= current_date - INTERVAL '{duration} weeks' ORDER BY date ASC;")
+        elif timeframe_unit == 'month':
+            # Last 'duration' months
+            query = text(f"{base_query} AND date >= current_date - INTERVAL '{duration} months' ORDER BY date ASC;")
+        elif timeframe_unit == 'all':
+            # All historical data (no additional date filter)
+            query = text(f"{base_query} ORDER BY date ASC;")
+        else:
+            # Default to 1 month if an invalid timeframe_unit is provided
+            query = text(f"{base_query} AND date >= current_date - INTERVAL '1 month' ORDER BY date ASC;")
+
         with engine.connect() as conn:
             df = pd.read_sql_query(query, conn)
-            df['date'] = pd.to_datetime(df['date'])
+        
+        # Ensure the 'date' column is in datetime format
+        df['date'] = pd.to_datetime(df['date']) 
         
         # Format the data into a structure that Chart.js understands
         chart_data = {

@@ -37,6 +37,16 @@
             margin: 0;
             font-size: 1.8em;
         }
+        /* --- NEW --- Start of .chart-container styles */
+        .chart-container {
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e0e4e8;
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        /* --- NEW --- End of .chart-container styles */
         .chat-window {
             flex-grow: 1;
             padding: 20px;
@@ -44,6 +54,7 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+            margin-top: 30px; /* Add space between chart and chat window */
         }
         .message {
             padding: 12px 18px;
@@ -87,7 +98,7 @@
             color: white;
             background-color: #27ae60;
             border: none;
-            border-radius: 8px;
+            border-radius: 8柜px;
             cursor: pointer;
             transition: background-color 0.2s;
         }
@@ -105,7 +116,18 @@
         <div class="header">
             <h1>AI Health Coach</h1>
         </div>
-        <div class="chart-container" style="padding: 20px; background-color: #f8f9fa; border-bottom: 1px solid #e0e4e8;">
+        <div class="chart-container">
+            <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 15px; gap: 10px;">
+            <label for="timeframeSelect">Show:</label>
+            <select id="timeframeSelect" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                <option value="month">Month</option>
+                <option value="week">Week</option>
+                <option value="all">All Time</option>
+            </select>
+            <input type="number" id="durationInput" value="1" min="1" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc; width: 60px;">
+            <label id="durationLabel">Month(s)</label>
+            <button id="applyTimeframe" style="padding: 8px 15px; border-radius: 5px; background-color: #27ae60; color: white; border: none; cursor: pointer;">Apply</button>
+        </div>
             <canvas id="strengthVolumeChart"></canvas>
         </div>
         <div class="chat-window" id="chat-window">
@@ -124,34 +146,52 @@
         const chatWindow = document.getElementById('chat-window');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
-        
+        const timeframeSelect = document.getElementById('timeframeSelect');
+        const durationInput = document.getElementById('durationInput');
+        const durationLabel = document.getElementById('durationLabel');
+        const applyTimeframeBtn = document.getElementById('applyTimeframe');
+
         // --- START OF NEW CHART LOGIC ---
+        let strengthVolumeChart = null; // Declare a variable to hold the chart instance
 
         // Function to fetch data and render the strength volume chart
-        async function renderStrengthChart() {
+        // Function to fetch data and render/update the strength volume chart
+        async function renderStrengthChart(timeframeUnit = 'month', duration = 1) { // Add parameters with defaults
             try {
-                const response = await fetch('/api/strength_volume_data');
+                let apiUrl = `/api/strength_volume_data?timeframe_unit=${timeframeUnit}`;
+                if (timeframeUnit !== 'all') { // Only add duration if not 'all'
+                    apiUrl += `&duration=${duration}`;
+                }
+
+                const response = await fetch(apiUrl); // Use the constructed URL
                 if (!response.ok) {
                     throw new Error('Network response for chart data was not ok');
                 }
                 const chartData = await response.json();
 
                 const ctx = document.getElementById('strengthVolumeChart').getContext('2d');
-                
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: chartData.labels,
-                        datasets: [{
-                            label: 'Total Daily Strength Volume (lbs)',
-                            data: chartData.data,
-                            borderColor: 'rgba(52, 152, 219, 1)',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            fill: true,
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
+
+                if (strengthVolumeChart) { // If chart already exists, update it
+                    strengthVolumeChart.data.labels = chartData.labels;
+                    strengthVolumeChart.data.datasets[0].data = chartData.data;
+                    strengthVolumeChart.update();
+                } else { // Otherwise, create a new chart
+                    strengthVolumeChart = new Chart(ctx, { // Assign new Chart instance to the variable
+                        type: 'line',
+                        data: {
+                            labels: chartData.labels,
+                            datasets: [{
+                                label: 'Total Daily Strength Volume (lbs)',
+                                data: chartData.data,
+                                borderColor: 'rgba(52, 152, 219, 1)',
+                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                                fill: true,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
                         scales: {
                             y: {
                                 beginAtZero: true
@@ -162,19 +202,58 @@
                                 display: true,
                                 position: 'top',
                             }
+                        },
+                        layout: {
+                            padding: {
+                                bottom: 30, // Keep this for X-axis labels
+                                right: 30   // Add padding to the right side
+                            }
                         }
                     }
-                });
+                    });
+                }
 
             } catch (error) {
                 console.error('Error rendering chart:', error);
-                // Optionally, hide the chart container if data fails to load
                 document.querySelector('.chart-container').style.display = 'none';
             }
         }
 
-        // Call the new function when the page loads
-        document.addEventListener('DOMContentLoaded', renderStrengthChart);
+        // Initial render when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            renderStrengthChart(); // Call without arguments for default (1 month)
+            updateDurationControls(); // Initialize controls display
+        });
+
+        // Function to update duration input visibility and label
+        function updateDurationControls() {
+            const selectedTimeframe = timeframeSelect.value;
+            if (selectedTimeframe === 'all') {
+                durationInput.style.display = 'none';
+                durationLabel.style.display = 'none';
+            } else {
+                durationInput.style.display = 'inline-block'; // or 'text'
+                durationLabel.style.display = 'inline-block';
+                durationLabel.textContent = selectedTimeframe === 'week' ? 'Week(s)' : 'Month(s)';
+            }
+        }
+
+        // Event listener for timeframe selection change
+        timeframeSelect.addEventListener('change', updateDurationControls);
+
+        // Event listener for apply button click
+        applyTimeframeBtn.addEventListener('click', () => {
+            const selectedTimeframeUnit = timeframeSelect.value;
+            const selectedDuration = parseInt(durationInput.value, 10); // Ensure it's an integer
+
+            // Validate duration for 'week' or 'month'
+            if (selectedTimeframeUnit !== 'all' && (isNaN(selectedDuration) || selectedDuration <= 0)) {
+                alert('Please enter a valid positive number for duration.');
+                return;
+            }
+
+            renderStrengthChart(selectedTimeframeUnit, selectedDuration);
+        });
 
         // --- END OF NEW CHART LOGIC ---
 
