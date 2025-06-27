@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 import json
 import numpy as np
+import uuid
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
@@ -91,14 +92,14 @@ def format_workout_details_for_prompt(df):
                 log_str += f"    - Set {row['set_order']}: {row['weight']} lbs x {row['reps']} reps ({rpe_str})\n"
     return log_str
 
-def save_chat_to_db(engine, user_prompt, model_response):
+def save_chat_to_db(engine, user_prompt, model_response, conversation_id):
     """Saves the conversation to the database."""
     try:
         with engine.connect() as conn:
             with conn.begin():
-                insert_query = text("INSERT INTO chat_history (role, content) VALUES (:role, :content)")
-                conn.execute(insert_query, {"role": "user", "content": user_prompt})
-                conn.execute(insert_query, {"role": "model", "content": model_response})
+                insert_query = text("INSERT INTO chat_history (role, content, conversation_id) VALUES (:role, :content, :conversation_id)")
+                conn.execute(insert_query, {"role": "user", "content": user_prompt, "conversation_id": conversation_id})
+                conn.execute(insert_query, {"role": "model", "content": model_response, "conversation_id": conversation_id})
     except Exception as e:
         print(f"Error saving chat history: {e}")
 
@@ -118,6 +119,7 @@ def ask():
     """
     # 1. Get the user's question from the incoming request data
     user_question = request.json.get('question')
+    conversation_id = request.json.get('conversation_id')
     if not user_question:
         return jsonify({"error": "No question provided"}), 400
 
@@ -170,7 +172,7 @@ def ask():
         model_response_text = response.text
         
         # 5. Save the full conversation to the database
-        save_chat_to_db(engine, user_question, model_response_text)
+        save_chat_to_db(engine, user_question, model_response_text, conversation_id)
         
         # 6. Return the response to the frontend
         return jsonify({"answer": model_response_text})

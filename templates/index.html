@@ -150,11 +150,17 @@
         const durationInput = document.getElementById('durationInput');
         const durationLabel = document.getElementById('durationLabel');
         const applyTimeframeBtn = document.getElementById('applyTimeframe');
+        
 
         // --- START OF NEW CHART LOGIC ---
         let strengthVolumeChart = null; // Declare a variable to hold the chart instance
+        let currentConversationId = null;
+        function startNewChat() {
+        currentConversationId = crypto.randomUUID();
+        console.log(`New chat started with ID: ${currentConversationId}`);
+        // We can add logic here later to clear the chat window, etc.
+        }        
 
-        // Function to fetch data and render the strength volume chart
         // Function to fetch data and render/update the strength volume chart
         async function renderStrengthChart(timeframeUnit = 'month', duration = 1) { // Add parameters with defaults
             try {
@@ -282,12 +288,14 @@
 
             try {
                 // Send the question to our Flask backend
-                const response = await fetch('/ask', {
+                const response = await dfetch('/ask', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ question: question }),
+                    body: JSON.stringify({
+                         question: question,
+                         conversation_id: currentConversationId}),
                 });
 
                 // Remove the "typing..." message
@@ -320,6 +328,8 @@
                 sendMessage();
             }
         });
+        // Start the first chat session when the page loads
+        startNewChat();
     </script>
     <!-- END OF JAVASCRIPT LOGIC -->
 
